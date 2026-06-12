@@ -1,6 +1,6 @@
 # LiteLLM Chat
 
-A minimal localhost website that gives you a **ChatGPT-esque UI** routed through your
+A minimal localhost website that gives you a GPT-like routed through your
 [LiteLLM](https://github.com/BerriAI/litellm) proxy.
 
 - Zero npm dependencies — just Node.js built-ins
