@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/apithing.iml" filepath="$PROJECT_DIR$/apithing.iml" />
+      <module fileurl="file://$PROJECT_DIR$/groovy-proxy.iml" filepath="$PROJECT_DIR$/groovy-proxy.iml" />
     </modules>
   </component>
 </project>

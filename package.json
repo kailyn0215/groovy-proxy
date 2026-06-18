@@ -1,7 +1,7 @@
 {
-  "name": "litellm-chat",
+  "name": "groovy-proxy",
   "version": "1.0.0",
-  "description": "LiteLLM Chat Interface - lightweight proxy UI",
+  "description": "Groovy Proxy - lightweight chat UI for OpenAI-compatible APIs",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -10,10 +10,10 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "keywords": ["litellm", "chat", "proxy", "ai"],
+  "keywords": ["groovy", "proxy", "chat", "ai", "openai"],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/KailynBrown-KR/groovy-proxy.git"
   }
 }

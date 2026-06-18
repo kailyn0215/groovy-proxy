@@ -8,8 +8,8 @@ echo "🛑 Stopping any existing Node processes..."
 pkill -f "node server.js" 2>/dev/null || true
 sleep 1
 
-CONFIG_FILE="$HOME/.node-server-config"
-CREDENTIALS_FILE="$HOME/.litellm-chat-config"
+CONFIG_FILE="$HOME/.groovy-proxy-dir"
+CREDENTIALS_FILE="$HOME/.groovy-proxy-config"
 PROJECT_DIR=""
 
 # Function to save the project directory
@@ -81,7 +81,7 @@ save_credentials() {
     
     # Create the credentials file with restricted permissions
     cat > "$CREDENTIALS_FILE" << EOF
-# LiteLLM Chat Configuration
+# Groovy Proxy Configuration
 # This file contains sensitive credentials - do not share!
 export LITELLM_BASE_URL="$base_url"
 export LITELLM_API_KEY="$api_key"
@@ -98,7 +98,7 @@ prompt_for_credentials() {
     echo "🔐 First time setup - Let's configure your API credentials"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
-    echo "Enter your LiteLLM/OpenAI API base URL"
+    echo "Enter your API base URL"
     echo "Examples:"
     echo "  • OpenAI: https://api.openai.com/v1"
     echo "  • Local LiteLLM proxy: http://localhost:4000"

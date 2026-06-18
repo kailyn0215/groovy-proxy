@@ -1,4 +1,4 @@
-/* LiteLLM Chat — app.js v3 */
+/* Groovy Proxy — app.js v3 */
 const $ = (sel) => document.querySelector(sel);
 const els = {
     sidebar: $('#sidebar'), chatList: $('#chat-list'), newChatBtn: $('#new-chat-btn'),
@@ -50,16 +50,16 @@ const els = {
     tokenEstimate: $('#token-estimate'),
     responseStats: $('#response-stats'),
 };
-const LS_KEY = 'litellm-chat::conversations::v3';
-const LS_MODEL = 'litellm-chat::model';
-const LS_ACTIVE = 'litellm-chat::active';
-const LS_MODEL_PREFS = 'litellm-chat::model-prefs';
-const LS_USERNAME = 'litellm-chat::username';
-const LS_THEME = 'litellm-chat::theme';
-const LS_API_KEY = 'litellm-chat::api-key';
-const LS_API_BASE = 'litellm-chat::api-base';
+const LS_KEY = 'groovy-proxy::conversations::v3';
+const LS_MODEL = 'groovy-proxy::model';
+const LS_ACTIVE = 'groovy-proxy::active';
+const LS_MODEL_PREFS = 'groovy-proxy::model-prefs';
+const LS_USERNAME = 'groovy-proxy::username';
+const LS_THEME = 'groovy-proxy::theme';
+const LS_API_KEY = 'groovy-proxy::api-key';
+const LS_API_BASE = 'groovy-proxy::api-base';
 const MAX_FILE = 10*1024*1024;
-const IDB_NAME = 'litellm-chat-images';
+const IDB_NAME = 'groovy-proxy-images';
 const IDB_STORE = 'images';
 let conversations = [], activeId = null, streamingAbort = null, pendingFiles = [];
 let imageMode = false; // Toggle between chat and image generation
@@ -217,7 +217,7 @@ function renderModelSettingsInModal() {
 }
 
 /* ====== Chat Folders & Tags ====== */
-const LS_FOLDERS = 'litellm-chat::folders';
+const LS_FOLDERS = 'groovy-proxy::folders';
 let folders = [];
 let allTags = [];
 let currentFolder = 'all';
@@ -1533,7 +1533,7 @@ function parseNestedList(lines, startIdx, tag) {
 function renderMessages() {
     const conv=activeConv(); els.messages.innerHTML='';
     if (!conv||!conv.messages.length) {
-        els.messages.innerHTML='<div class="empty-state"><h1>LiteLLM Chat</h1>'+
+        els.messages.innerHTML='<div class="empty-state"><h1>Groovy Proxy</h1>'+
             '<p>Ask anything \u00b7 drop in images, code, PDFs</p></div>';
         els.title.textContent=conv?(conv.title||'New chat'):'New chat';
         return;
@@ -3091,7 +3091,7 @@ els.themeSelect.addEventListener('change', () => {
 });
 
 /* ====== Split View ====== */
-const LS_SPLIT = 'litellm-chat::split-state';
+const LS_SPLIT = 'groovy-proxy::split-state';
 let splitMode = false;
 let splitPanes = [
     { id: 'pane1', conversationId: null },

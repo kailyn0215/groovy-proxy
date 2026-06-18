@@ -1,20 +1,20 @@
 #!/bin/bash
 
-# LiteLLM Chat Installer
-# Run with: curl -fsSL https://raw.githubusercontent.com/KailynBrown-KR/litellm-chat/master/install.sh | bash
+# Groovy Proxy Installer
+# Run with: curl -fsSL https://raw.githubusercontent.com/KailynBrown-KR/groovy-proxy/master/install.sh | bash
 
 set -e
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║           🚀 LiteLLM Chat Installer                          ║"
+echo "║           🚀 Groovy Proxy Installer                          ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
 # Define installation directory
-INSTALL_DIR="$HOME/LiteLLM-Chat"
-APP_NAME="LiteLLM Chat"
-REPO_URL="https://github.com/KailynBrown-KR/litellm-chat.git"
+INSTALL_DIR="$HOME/Groovy-Proxy"
+APP_NAME="Groovy Proxy"
+REPO_URL="https://github.com/KailynBrown-KR/groovy-proxy.git"
 
 # Check if running on macOS
 if [[ "$OSTYPE" != "darwin"* ]]; then
@@ -82,17 +82,17 @@ fi
 
 # Step 5: Clone or update the repository
 echo ""
-echo "📋 Setting up LiteLLM Chat..."
+echo "📋 Setting up Groovy Proxy..."
 if [ -d "$INSTALL_DIR" ]; then
     echo "📂 Directory already exists, updating..."
     cd "$INSTALL_DIR"
     git pull origin master 2>/dev/null || git pull origin main 2>/dev/null || true
 else
-    echo "📥 Downloading LiteLLM Chat..."
+    echo "📥 Downloading Groovy Proxy..."
     git clone "$REPO_URL" "$INSTALL_DIR"
     cd "$INSTALL_DIR"
 fi
-echo "✅ LiteLLM Chat downloaded to $INSTALL_DIR"
+echo "✅ Groovy Proxy downloaded to $INSTALL_DIR"
 
 # Step 6: Install dependencies
 echo ""
@@ -105,15 +105,15 @@ chmod +x start-server.sh
 
 # Step 8: Create the macOS app
 echo ""
-echo "🎨 Creating LiteLLM Chat app..."
+echo "🎨 Creating Groovy Proxy app..."
 
 # Create Applications directory if it doesn't exist
 mkdir -p "$HOME/Applications"
 
 # Create the AppleScript
-cat > /tmp/LiteLLMChat.applescript << 'APPLESCRIPT'
+cat > /tmp/GroovyProxy.applescript << 'APPLESCRIPT'
 on run
-    set scriptPath to (system attribute "HOME") & "/LiteLLM-Chat/start-server.sh"
+    set scriptPath to (system attribute "HOME") & "/Groovy-Proxy/start-server.sh"
     
     tell application "Terminal"
         activate
@@ -123,21 +123,21 @@ end run
 APPLESCRIPT
 
 # Compile to app
-osacompile -o "$HOME/Applications/$APP_NAME.app" /tmp/LiteLLMChat.applescript
-rm /tmp/LiteLLMChat.applescript
+osacompile -o "$HOME/Applications/$APP_NAME.app" /tmp/GroovyProxy.applescript
+rm /tmp/GroovyProxy.applescript
 
 # Apply custom icon if it exists
-if [ -f "$INSTALL_DIR/LiteLLM-logo.icns" ]; then
+if [ -f "$INSTALL_DIR/groovy-proxy.icns" ]; then
     echo "🎨 Applying custom icon..."
     
     # Copy to app bundle
-    cp "$INSTALL_DIR/LiteLLM-logo.icns" "$HOME/Applications/$APP_NAME.app/Contents/Resources/applet.icns"
+    cp "$INSTALL_DIR/groovy-proxy.icns" "$HOME/Applications/$APP_NAME.app/Contents/Resources/applet.icns"
     
     # Create AppleScript to set icon using NSWorkspace
     cat > /tmp/seticon.scpt << SETICON
 use framework "AppKit"
 
-set iconPath to "$INSTALL_DIR/LiteLLM-logo.icns"
+set iconPath to "$INSTALL_DIR/groovy-proxy.icns"
 set appPath to "$HOME/Applications/$APP_NAME.app"
 
 set iconImage to current application's NSImage's alloc()'s initWithContentsOfFile:iconPath
@@ -157,7 +157,7 @@ fi
 echo "✅ App created at ~/Applications/$APP_NAME.app"
 
 # Step 9: Save config pointing to install directory
-echo "$INSTALL_DIR" > "$HOME/.node-server-config"
+echo "$INSTALL_DIR" > "$HOME/.groovy-proxy-config"
 
 # Done!
 echo ""
@@ -165,13 +165,13 @@ echo "╔═══════════════════════�
 echo "║           ✅ Installation Complete!                          ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
-echo "📍 LiteLLM Chat is installed at: $INSTALL_DIR"
+echo "📍 Groovy Proxy is installed at: $INSTALL_DIR"
 echo "📍 App is at: ~/Applications/$APP_NAME.app"
 echo ""
-echo "🚀 To start using LiteLLM Chat:"
+echo "🚀 To start using Groovy Proxy:"
 echo "   1. Open Finder"
 echo "   2. Press ⌘+Shift+G and type: ~/Applications"
-echo "   3. Double-click 'LiteLLM Chat'"
+echo "   3. Double-click 'Groovy Proxy'"
 echo ""
 echo "   Or drag it to your Dock for easy access!"
 echo ""

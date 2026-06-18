@@ -1,4 +1,4 @@
-# LiteLLM Chat
+# Groovy Proxy
 
 A minimal, self-hosted chat interface for [LiteLLM](https://github.com/BerriAI/litellm) and OpenAI-compatible APIs.
 
@@ -7,10 +7,10 @@ A minimal, self-hosted chat interface for [LiteLLM](https://github.com/BerriAI/l
 Run this one command in Terminal:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/KailynBrown-KR/litellm-chat/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/KailynBrown-KR/groovy-proxy/master/install.sh | bash
 ```
 
-That's it! The installer handles everything automatically, then you can double-click **LiteLLM Chat** from your Applications folder.
+That's it! The installer handles everything automatically, then you can double-click **Groovy Proxy** from your Applications folder.
 
 ---
 
@@ -39,15 +39,15 @@ The installer automatically handles:
 - ✅ App creation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/KailynBrown-KR/litellm-chat/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/KailynBrown-KR/groovy-proxy/master/install.sh | bash
 ```
 
 ### Option 2: Manual
 
 ```bash
 # Clone the repo
-git clone https://github.com/KailynBrown-KR/litellm-chat.git
-cd litellm-chat
+git clone https://github.com/KailynBrown-KR/groovy-proxy.git
+cd groovy-proxy
 
 # Install dependencies
 npm install
@@ -71,7 +71,7 @@ On first launch, you'll be prompted to enter:
 
 2. **API Key** — Your API key (input is hidden for security)
 
-Credentials are saved to `~/.litellm-chat-config` with `600` permissions (only you can read it).
+Credentials are saved to `~/.groovy-proxy-config` with `600` permissions (only you can read it).
 
 ### Environment Variables
 
@@ -102,14 +102,14 @@ The frontend (`public/`) is a single static page that uses the OpenAI-compatible
 ### Reset API Credentials
 
 ```bash
-rm ~/.litellm-chat-config
+rm ~/.groovy-proxy-config
 ```
 Next launch will prompt for new credentials.
 
 ### Reset Project Path
 
 ```bash
-rm ~/.node-server-config
+rm ~/.groovy-proxy-dir
 ```
 Next launch will prompt for the project directory.
 
@@ -124,7 +124,7 @@ lsof -i :3000
 
 The app auto-updates on launch, but you can force an update:
 ```bash
-cd ~/LiteLLM-Chat
+cd ~/Groovy-Proxy
 git pull origin master
 ```
 
