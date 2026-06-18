@@ -103,18 +103,41 @@ else
     fi
 fi
 
+# GitHub repository URL for auto-updates
+GITHUB_REPO="https://github.com/KailynBrown-KR/groovy-proxy.git"
+
 # Function to check for updates and auto-update
 check_for_updates() {
     echo "🔍 Checking for updates from GitHub..."
     
     # Check if this is a git repository
     if [ ! -d ".git" ]; then
-        echo "⚠️  Warning: Not a git repository, skipping update check"
-        return 0
+        echo "⚠️  Not a git repository. Initializing git and adding remote..."
+        git init 2>/dev/null
+        git remote add origin "$GITHUB_REPO" 2>/dev/null
     fi
     
+    # Ensure the remote is set to the correct URL
+    CURRENT_REMOTE=$(git remote get-url origin 2>/dev/null)
+    if [ "$CURRENT_REMOTE" != "$GITHUB_REPO" ]; then
+        echo "📡 Updating remote URL to $GITHUB_REPO"
+        git remote set-url origin "$GITHUB_REPO" 2>/dev/null || \
+        git remote add origin "$GITHUB_REPO" 2>/dev/null
+    fi
+    
+    # Detect the default branch (main or master)
+    DEFAULT_BRANCH="main"
+    if git ls-remote --heads origin master 2>/dev/null | grep -q master; then
+        # Check if main also exists, prefer main
+        if ! git ls-remote --heads origin main 2>/dev/null | grep -q main; then
+            DEFAULT_BRANCH="master"
+        fi
+    fi
+    
+    echo "📡 Fetching from origin/$DEFAULT_BRANCH..."
+    
     # Fetch latest changes from remote
-    if ! git fetch origin master 2>/dev/null; then
+    if ! git fetch origin "$DEFAULT_BRANCH" 2>/dev/null; then
         echo "⚠️  Warning: Could not fetch from remote (no network or repo access)"
         echo "   Continuing with current version..."
         return 0
@@ -122,7 +145,7 @@ check_for_updates() {
     
     # Get local and remote commit hashes
     LOCAL_HASH=$(git rev-parse HEAD 2>/dev/null)
-    REMOTE_HASH=$(git rev-parse origin/master 2>/dev/null)
+    REMOTE_HASH=$(git rev-parse "origin/$DEFAULT_BRANCH" 2>/dev/null)
     
     if [ -z "$LOCAL_HASH" ] || [ -z "$REMOTE_HASH" ]; then
         echo "⚠️  Warning: Could not determine version info"
@@ -130,27 +153,46 @@ check_for_updates() {
         return 0
     fi
     
+    # Show version info
+    LOCAL_SHORT="${LOCAL_HASH:0:7}"
+    REMOTE_SHORT="${REMOTE_HASH:0:7}"
+    echo "   Local version:  $LOCAL_SHORT"
+    echo "   Remote version: $REMOTE_SHORT"
+    
     # Compare versions
     if [ "$LOCAL_HASH" = "$REMOTE_HASH" ]; then
         echo "✅ Already up to date!"
         return 0
     fi
     
-    echo "📦 Update available! Updating to latest version..."
+    # Count commits behind
+    COMMITS_BEHIND=$(git rev-list --count HEAD.."origin/$DEFAULT_BRANCH" 2>/dev/null || echo "?")
+    echo "📦 Update available! ($COMMITS_BEHIND commits behind)"
+    echo "   Updating to latest version..."
     
     # Check if there are uncommitted changes
     if ! git diff-index --quiet HEAD -- 2>/dev/null; then
         echo "⚠️  Warning: You have uncommitted local changes"
         echo "   Stashing changes before update..."
-        git stash 2>/dev/null
+        git stash push -m "Auto-stash before update $(date +%Y%m%d-%H%M%S)" 2>/dev/null
     fi
     
     # Pull the latest changes
-    if git pull origin master 2>/dev/null; then
-        echo "✅ Successfully updated to latest version!"
+    if git pull origin "$DEFAULT_BRANCH" 2>/dev/null; then
+        NEW_HASH=$(git rev-parse HEAD 2>/dev/null)
+        NEW_SHORT="${NEW_HASH:0:7}"
+        echo "✅ Successfully updated to version $NEW_SHORT!"
+        
+        # Show what changed
+        echo ""
+        echo "📝 Recent changes:"
+        git log --oneline -5 2>/dev/null | head -5 | while read line; do
+            echo "   • $line"
+        done
+        echo ""
         
         # Check if package.json was updated and run npm install
-        if git diff --name-only HEAD~1 HEAD 2>/dev/null | grep -q "package.json"; then
+        if git diff --name-only "$LOCAL_HASH" HEAD 2>/dev/null | grep -q "package.json"; then
             echo "📦 package.json was updated, running npm install..."
             if npm install 2>/dev/null; then
                 echo "✅ Dependencies updated successfully!"
@@ -158,6 +200,9 @@ check_for_updates() {
                 echo "⚠️  Warning: npm install failed, some features may not work"
             fi
         fi
+        
+        # Make start script executable again (in case it was updated)
+        chmod +x "$0" 2>/dev/null
     else
         echo "⚠️  Warning: Failed to pull updates"
         echo "   Continuing with current version..."

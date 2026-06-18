@@ -129,6 +129,88 @@
     --pattern-opacity: 0.03;
 }
 
+/* ============================================================
+   Berry Light Theme — soft gray + magenta/wine accents
+   ============================================================ */
+[data-theme="berry"] {
+    /* Cool gray base */
+    --bg:           #F3F4F4;   /* soft cool gray */
+    --bg-2:         #eaebeb;
+    --sidebar-bg:   #e2e4e5;   /* light steel */
+    --panel:        #e8e9ea;   /* pale gray */
+    --panel-2:      #dfe0e2;
+    --border:       #c8cacc;
+
+    /* Charcoal ink */
+    --text:         #2C2C2C;   /* charcoal */
+    --text-soft:    #454548;
+    --muted:        #6e6e72;
+
+    /* Berry & wine accents */
+    --accent:       #853953;   /* berry */
+    --accent-2:     #a04d68;   /* rose */
+    --accent-hot:   #742f48;   /* wine */
+    --accent-deep:  #612D53;   /* deep purple */
+
+    /* Plum & magenta */
+    --olive:        #612D53;   /* deep plum */
+    --olive-bright: #9a4878;   /* bright magenta */
+
+    /* Mood */
+    --danger:       #b93a52;
+    --user-bubble-bg:      rgba(243, 244, 244, 0.96);
+    --user-bubble-border:  rgba(133, 57, 83, 0.45);
+    --assistant-bubble-bg: rgba(240, 238, 242, 0.94);
+    --assistant-bubble-border: rgba(97, 45, 83, 0.40);
+
+    --shadow-warm: 0 4px 20px rgba(44, 44, 44, 0.10),
+                   0 0 60px rgba(133, 57, 83, 0.03) inset;
+    
+    /* Theme-specific overlay opacity */
+    --grain-opacity: 0.02;
+    --pattern-opacity: 0.03;
+}
+
+/* Light theme pattern adjustments for berry */
+[data-theme="berry"] body::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='160' viewBox='0 0 80 160'%3E%3Cpath d='M40 0 C25 0 15 20 15 40 C15 60 5 80 5 80 C5 80 15 100 15 120 C15 140 25 160 40 160 C55 160 65 140 65 120 C65 100 75 80 75 80 C75 80 65 60 65 40 C65 20 55 0 40 0 Z' fill='%23853953' stroke='%23a04d68' stroke-width='1'/%3E%3C/svg%3E");
+}
+
+[data-theme="berry"] #sidebar {
+    background: linear-gradient(180deg, #e2e4e5 0%, #d8dade 100%);
+    box-shadow: inset -1px 0 0 rgba(133, 57, 83, 0.15);
+}
+[data-theme="berry"] #topbar {
+    background: linear-gradient(180deg, rgba(226, 228, 229, 0.95), rgba(243, 244, 244, 0.85));
+}
+[data-theme="berry"] #conversation-title {
+    color: var(--text);
+}
+[data-theme="berry"] .ghost-btn {
+    color: var(--text-soft);
+}
+[data-theme="berry"] .ghost-btn:hover {
+    background: rgba(133, 57, 83, 0.12);
+    color: var(--accent);
+}
+[data-theme="berry"] .chat-item.active {
+    background: rgba(133, 57, 83, 0.18);
+    border-color: var(--accent);
+}
+[data-theme="berry"] .chat-item:hover:not(.active) {
+    background: rgba(133, 57, 83, 0.08);
+}
+[data-theme="berry"] #model-select,
+[data-theme="berry"] #folder-select {
+    background: var(--panel);
+    color: var(--text);
+    border-color: var(--border);
+}
+[data-theme="berry"] .context-file-thumb {
+    background: rgba(133, 57, 83, 0.08);
+    border-color: rgba(133, 57, 83, 0.2);
+}
+
 /* Light theme pattern adjustments for plum */
 [data-theme="plum"] body::after {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='160' viewBox='0 0 80 160'%3E%3Cpath d='M40 0 C25 0 15 20 15 40 C15 60 5 80 5 80 C5 80 15 100 15 120 C15 140 25 160 40 160 C55 160 65 140 65 120 C65 100 75 80 75 80 C75 80 65 60 65 40 C65 20 55 0 40 0 Z' fill='%239d5094' stroke='%23c084b8' stroke-width='1'/%3E%3C/svg%3E");
