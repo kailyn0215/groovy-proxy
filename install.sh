@@ -126,6 +126,15 @@ APPLESCRIPT
 osacompile -o "$HOME/Applications/$APP_NAME.app" /tmp/LiteLLMChat.applescript
 rm /tmp/LiteLLMChat.applescript
 
+# Apply custom icon if it exists
+if [ -f "$INSTALL_DIR/litellm-logo.icns" ]; then
+    echo "🎨 Applying custom icon..."
+    cp "$INSTALL_DIR/litellm-logo.icns" "$HOME/Applications/$APP_NAME.app/Contents/Resources/applet.icns"
+    # Touch the app to refresh icon cache
+    touch "$HOME/Applications/$APP_NAME.app"
+    echo "✅ Custom icon applied"
+fi
+
 echo "✅ App created at ~/Applications/$APP_NAME.app"
 
 # Step 9: Save config pointing to install directory
