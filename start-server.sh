@@ -8,57 +8,16 @@ echo "🛑 Stopping any existing Node processes..."
 pkill -f "node server.js" 2>/dev/null || true
 sleep 1
 
-CONFIG_FILE="$HOME/.groovy-proxy-dir"
+# Auto-detect project directory (where this script lives)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$SCRIPT_DIR"
 CREDENTIALS_FILE="$HOME/.groovy-proxy-config"
-PROJECT_DIR=""
 
-# Function to save the project directory
-save_path() {
-    echo "$1" > "$CONFIG_FILE"
-    echo "Path saved to $CONFIG_FILE"
-}
-
-# Function to prompt for path
-prompt_for_path() {
-    echo "Please enter the full path to your Node project:"
-    read -p "Path: " input_path
-    
-    # Remove trailing slash if present
-    input_path="${input_path%/}"
-    
-    # Check if directory exists
-    if [ ! -d "$input_path" ]; then
-        echo "❌ Directory not found: $input_path"
-        return 1
-    fi
-    
-    # Check if server.js exists
-    if [ ! -f "$input_path/server.js" ]; then
-        echo "❌ server.js not found in $input_path"
-        return 1
-    fi
-    
-    save_path "$input_path"
-    PROJECT_DIR="$input_path"
-    return 0
-}
-
-# Check if config file exists and has a valid path
-if [ -f "$CONFIG_FILE" ]; then
-    PROJECT_DIR=$(cat "$CONFIG_FILE")
-    
-    # Verify the saved path still exists
-    if [ ! -d "$PROJECT_DIR" ] || [ ! -f "$PROJECT_DIR/server.js" ]; then
-        echo "⚠️  Saved path is invalid or has changed"
-        if ! prompt_for_path; then
-            exit 1
-        fi
-    fi
-else
-    echo "🚀 First time setup - let's find your project!"
-    if ! prompt_for_path; then
-        exit 1
-    fi
+# Verify server.js exists in this directory
+if [ ! -f "$PROJECT_DIR/server.js" ]; then
+    echo "❌ Error: server.js not found in $PROJECT_DIR"
+    echo "   Make sure this script is in the Groovy Proxy directory."
+    exit 1
 fi
 
 # Navigate to project directory
