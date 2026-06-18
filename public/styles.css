@@ -244,8 +244,12 @@
     background: rgba(174, 183, 132, 0.25);
     color: var(--accent);
 }
+[data-theme="sage"] .model-fav-btn:hover {
+    background: rgba(107, 112, 48, 0.15);
+    border-color: var(--accent);
+}
 [data-theme="sage"] .model-fav-btn.active {
-    background: rgba(107, 112, 48, 0.2);
+    background: rgba(107, 112, 48, 0.25);
     border-color: var(--accent);
 }
 
@@ -375,8 +379,12 @@
     background: rgba(84, 119, 146, 0.20);
     color: var(--accent);
 }
+[data-theme="ocean"] .model-fav-btn:hover {
+    background: rgba(84, 119, 146, 0.15);
+    border-color: var(--accent);
+}
 [data-theme="ocean"] .model-fav-btn.active {
-    background: rgba(84, 119, 146, 0.2);
+    background: rgba(84, 119, 146, 0.25);
     border-color: var(--accent);
 }
 
@@ -428,8 +436,12 @@
     background: rgba(133, 57, 83, 0.18);
     color: var(--accent);
 }
+[data-theme="plum"] .model-fav-btn:hover {
+    background: rgba(133, 57, 83, 0.15);
+    border-color: var(--accent);
+}
 [data-theme="plum"] .model-fav-btn.active {
-    background: rgba(133, 57, 83, 0.2);
+    background: rgba(133, 57, 83, 0.25);
     border-color: var(--accent);
 }
 

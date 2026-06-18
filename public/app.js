@@ -725,6 +725,7 @@ function renderModelList(filter = '') {
             updateModeForModel(id);
             const c = activeConv();
             if (c) { c.model = id; saveState(); }
+            updateQuickFavBtn();
         });
         
         els.modelList.appendChild(item);
