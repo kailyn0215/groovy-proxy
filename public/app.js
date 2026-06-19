@@ -1056,6 +1056,42 @@ async function storeImage(id, dataUrl) {
     });
 }
 
+// Store multiple images and return array of IDB references
+async function storeImages(dataUrls) {
+    const refs = [];
+    for (const dataUrl of dataUrls) {
+        const id = 'img_' + newId();
+        try {
+            await storeImage(id, dataUrl);
+            refs.push({ type: 'idb', id });
+        } catch (e) {
+            console.error('Failed to store image:', e);
+            // Fallback: store URL directly (may cause quota issues)
+            refs.push({ type: 'url', url: dataUrl });
+        }
+    }
+    return refs;
+}
+
+// Load images from IDB references and return data URLs
+async function loadImagesFromRefs(refs) {
+    if (!refs?.length) return [];
+    const urls = [];
+    for (const ref of refs) {
+        if (ref.type === 'url') {
+            urls.push(ref.url);
+        } else if (ref.type === 'idb') {
+            try {
+                const dataUrl = await getImage(ref.id);
+                if (dataUrl) urls.push(dataUrl);
+            } catch (e) {
+                console.error('Failed to load image from IDB:', e);
+            }
+        }
+    }
+    return urls;
+}
+
 async function getImage(id) {
     if (!imageDB) await initImageDB();
     return new Promise((resolve, reject) => {
@@ -1082,8 +1118,36 @@ function loadState() {
     if (!conversations.find(c=>c.id===activeId)) activeId = conversations[0]?.id||null;
 }
 function saveState() {
-    localStorage.setItem(LS_KEY, JSON.stringify(conversations));
-    activeId ? localStorage.setItem(LS_ACTIVE, activeId) : localStorage.removeItem(LS_ACTIVE);
+    try {
+        localStorage.setItem(LS_KEY, JSON.stringify(conversations));
+        activeId ? localStorage.setItem(LS_ACTIVE, activeId) : localStorage.removeItem(LS_ACTIVE);
+    } catch (e) {
+        if (e.name === 'QuotaExceededError') {
+            console.error('localStorage quota exceeded. Attempting to clean up...');
+            // Try to remove old image data from conversations
+            cleanupConversationImages();
+            try {
+                localStorage.setItem(LS_KEY, JSON.stringify(conversations));
+            } catch (e2) {
+                alert('Storage quota exceeded. Please delete some conversations to free up space.');
+            }
+        } else {
+            console.error('Failed to save state:', e);
+        }
+    }
+}
+
+// Clean up inline image data from conversations (migrate to IDB references)
+function cleanupConversationImages() {
+    conversations.forEach(conv => {
+        conv.messages?.forEach(msg => {
+            // If message has inline images array with data URLs, convert to references
+            if (msg.images?.length) {
+                // Remove inline images that are data URLs (too large for localStorage)
+                msg.images = msg.images.filter(img => !img.startsWith('data:'));
+            }
+        });
+    });
 }
 function newId() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function activeConv() { return conversations.find(c=>c.id===activeId)||null; }
@@ -1561,9 +1625,15 @@ function buildMsgEl(msg,idx,conv) {
     }
     const ct=document.createElement('div'); ct.className='content';
     let html='';
+    // Legacy: inline images array (for backwards compatibility)
     if (msg.images?.length) msg.images.forEach(s=>{html+='<img class="msg-image" src="'+s+'" loading="lazy">';});
     html+=renderContent(msg.content||'');
     ct.innerHTML=html;
+    
+    // Load user-attached images from IndexedDB refs
+    if (msg.imageRefs?.length) {
+        renderUserImages(ct, msg.imageRefs);
+    }
     
     // If this message has generated images stored in IndexedDB, load them
     if (msg.generatedImages?.length) {
@@ -1693,7 +1763,19 @@ async function sendMessage(text, existingImages) {
     if (!conv.messages.length) conv.title = text.length>40?text.slice(0,40)+'\u2026':text||'Image chat';
 
     const content = buildMessageContent(text, images, textFiles);
-    conv.messages.push({role:'user',content:text,images:images.length?images:undefined,timestamp:Date.now()});
+    
+    // Store images in IndexedDB to avoid localStorage quota issues
+    let imageRefs = undefined;
+    if (images.length) {
+        try {
+            imageRefs = await storeImages(images);
+        } catch (e) {
+            console.error('Failed to store images:', e);
+            // Fallback: don't store image refs, they won't persist but message will send
+        }
+    }
+    
+    conv.messages.push({role:'user',content:text,imageRefs:imageRefs,timestamp:Date.now()});
     const assistantMsg = {role:'assistant',content:'',timestamp:Date.now()};
     conv.messages.push(assistantMsg);
     saveState(); renderSidebar(); renderMessages();
@@ -2375,6 +2457,39 @@ async function sendImageGeneration(prompt) {
         if(contentEl) contentEl.innerHTML=renderContent(assistantMsg.content);
         saveState();
     } finally { streamingAbort=null; setSending(false); focusInput(); }
+}
+
+/* ====== Render User-Attached Images from IndexedDB ====== */
+async function renderUserImages(container, imageRefs) {
+    if (!container || !imageRefs?.length) return;
+    
+    // Create a wrapper for user images at the top of content
+    const wrapper = document.createElement('div');
+    wrapper.className = 'user-images-wrapper';
+    
+    for (const ref of imageRefs) {
+        const img = document.createElement('img');
+        img.className = 'msg-image';
+        img.loading = 'lazy';
+        
+        if (ref.type === 'url') {
+            img.src = ref.url;
+        } else if (ref.type === 'idb') {
+            try {
+                const dataUrl = await getImage(ref.id);
+                if (dataUrl) img.src = dataUrl;
+                else continue;
+            } catch (e) {
+                console.error('Failed to load user image:', e);
+                continue;
+            }
+        }
+        
+        wrapper.appendChild(img);
+    }
+    
+    // Insert at the beginning of container
+    container.insertBefore(wrapper, container.firstChild);
 }
 
 /* ====== Render Generated Images ====== */
