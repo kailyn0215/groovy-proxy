@@ -1681,12 +1681,14 @@ async function sendMessage(text, existingImages) {
     const images = existingImages || pendingFiles.filter(f=>f.isImage).map(f=>f.dataUrl);
     const textFiles = pendingFiles.filter(f=>!f.isImage);
     if (!text && !images.length && !textFiles.length) return;
-    pendingFiles = []; renderAttachments();
 
     let conv = activeConv();
     if (!conv) { createConversation(); conv = activeConv(); }
     const model = els.modelSelect.value;
     if (!model||model.startsWith('(')) { alert('No model available'); return; }
+    
+    // Clear attachments only after all validation passes
+    pendingFiles = []; renderAttachments();
     conv.model = model;
     if (!conv.messages.length) conv.title = text.length>40?text.slice(0,40)+'\u2026':text||'Image chat';
 
@@ -1828,9 +1830,17 @@ function autoResize(){els.input.style.height='auto';els.input.style.height=Math.
 els.composer.addEventListener('submit', e => {
     e.preventDefault();
     if(streamingAbort){streamingAbort.abort();return;}
-    const text=els.input.value; els.input.value=''; autoResize();
-    if(imageMode) sendImageGeneration(text);
-    else sendMessage(text);
+    const text=els.input.value;
+    // Don't clear input until we know the message will be sent
+    // The sendMessage/sendImageGeneration functions will handle validation
+    if(imageMode) {
+        if(text.trim()) { els.input.value=''; autoResize(); }
+        sendImageGeneration(text);
+    } else {
+        // Only clear if there's content to send (text, images, or files)
+        if(text.trim() || pendingFiles.length) { els.input.value=''; autoResize(); }
+        sendMessage(text);
+    }
 });
 els.input.addEventListener('keydown', e => {
     if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();els.composer.requestSubmit();}
