@@ -23,7 +23,7 @@ That's it! The installer handles everything automatically, then you can double-c
 - **Streaming Responses** — Real-time SSE streaming like ChatGPT
 - **Multiple Conversations** — Stored in `localStorage`, persists across sessions
 - **Model Picker** — Auto-populated from your API endpoint
-- **Multiple Themes** — Clean dark and light theme to choose from
+- **Multiple Themes** — Wide variety of themes to choose from
 
 ---
 
@@ -106,13 +106,6 @@ rm ~/.groovy-proxy-config
 ```
 Next launch will prompt for new credentials.
 
-### Reset Project Path
-
-```bash
-rm ~/.groovy-proxy-dir
-```
-Next launch will prompt for the project directory.
-
 ### Server Won't Start
 
 Check if another process is using port 3000:
@@ -137,7 +130,7 @@ server.js          # Node static server + /api/* reverse proxy
 start-server.sh    # Launch script with auto-update & credential management
 install.sh         # One-click installer for macOS
 public/index.html  # Shell layout (sidebar + chat area)
-public/styles.css  # Dark & Light theme options
+public/styles.css  # Multiple colorful theme options
 public/app.js      # Chat logic, streaming, conversation state
 ```
 
@@ -148,9 +141,3 @@ public/app.js      # Chat logic, streaming, conversation state
 - **macOS** (installer is macOS-only; manual install works on Linux)
 - **Node.js 18+** (installed automatically by the installer)
 - An OpenAI-compatible API endpoint
-
----
-
-## 📄 License
-
-MIT
