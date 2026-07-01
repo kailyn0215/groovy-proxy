@@ -1652,7 +1652,32 @@ function buildMsgEl(msg,idx,conv) {
     return w;
 }
 function makeBtn(label,fn){const b=document.createElement('button');b.className='msg-action-btn';b.textContent=label;b.onclick=fn;return b;}
-function scrollToBottom(){els.messages.scrollTop=els.messages.scrollHeight;}
+/* ====== Smart Auto-Scroll ====== */
+// Track if user has manually scrolled up (to stop auto-scrolling)
+let userScrolledUp = false;
+const SCROLL_THRESHOLD = 100; // pixels from bottom to consider "near bottom"
+
+function isNearBottom(container) {
+    if (!container) return true;
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    return scrollHeight - scrollTop - clientHeight < SCROLL_THRESHOLD;
+}
+
+function scrollToBottom(force = false) {
+    // Only auto-scroll if user is near bottom or force is true
+    if (force || !userScrolledUp) {
+        els.messages.scrollTop = els.messages.scrollHeight;
+    }
+}
+
+// Initialize scroll listener to detect when user manually scrolls
+function initScrollTracking() {
+    els.messages?.addEventListener('scroll', () => {
+        // If user scrolls up (away from bottom), mark it
+        userScrolledUp = !isNearBottom(els.messages);
+    });
+}
+
 function focusInput(){els.input.focus();}
 function setSending(on){els.sendBtn.disabled=false;els.sendBtn.textContent=on?'\u25a0':'\u2191';els.sendBtn.title=on?'Stop':'Send';}
 
@@ -1763,6 +1788,9 @@ async function sendMessage(text, existingImages) {
     if (!conv.messages.length) conv.title = text.length>40?text.slice(0,40)+'\u2026':text||'Image chat';
 
     const content = buildMessageContent(text, images, textFiles);
+    
+    // Reset scroll tracking - user is sending a new message, so auto-scroll should resume
+    userScrolledUp = false;
     
     // Store images in IndexedDB to avoid localStorage quota issues
     let imageRefs = undefined;
@@ -3652,6 +3680,7 @@ renderSidebar = function() {
     initSettingsModal();
     initModelPicker();
     initFolders();
+    initScrollTracking(); // Initialize smart auto-scroll
     await initImageDB().catch(e => console.warn('IndexedDB init failed:', e));
     // Load username into input
     if (els.usernameInput) els.usernameInput.value = getUsername() === 'You' ? '' : getUsername();
