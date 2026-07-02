@@ -22,16 +22,21 @@
             <span>＋</span> New chat
         </button>
         
-        <!-- Folder selector -->
-        <div id="folder-selector" class="folder-selector">
-            <select id="folder-select">
-                <option value="all">📁 All Chats</option>
-                <option value="unfiled">📄 Unfiled</option>
-            </select>
-            <button id="manage-folders-btn" class="ghost-btn small" title="Manage folders">⚙</button>
+        <!-- Unified sidebar list (folders + chats) -->
+        <div id="chat-list" class="chat-list">
+            <div id="folder-tree" class="folder-tree-inline">
+                <div class="folder-section-header">
+                    <span>FOLDERS</span>
+                    <div class="folder-tree-actions">
+                        <button id="add-folder-btn" class="ghost-btn small" title="Add folder">+</button>
+                        <button id="manage-folders-btn" class="ghost-btn small" title="Manage folders">⚙</button>
+                    </div>
+                </div>
+                <div id="folder-tree-items" class="folder-tree-items">
+                    <!-- Dynamic folder items rendered by JS -->
+                </div>
+            </div>
         </div>
-        
-        <div id="chat-list" class="chat-list"></div>
         <div class="sidebar-footer">
             <div class="model-row">
                 <label>Model</label>

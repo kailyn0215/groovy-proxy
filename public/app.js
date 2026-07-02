@@ -36,7 +36,9 @@ const els = {
     modelSearch: $('#model-search'),
     modelList: $('#model-list'),
     // Folder/tag elements
-    folderSelect: $('#folder-select'),
+    folderTree: $('#folder-tree'),
+    folderTreeItems: $('#folder-tree-items'),
+    addFolderBtn: $('#add-folder-btn'),
     manageFoldersBtn: $('#manage-folders-btn'),
     folderModal: $('#folder-modal'),
     newFolderInput: $('#new-folder-input'),
@@ -218,10 +220,12 @@ function renderModelSettingsInModal() {
 
 /* ====== Chat Folders & Tags ====== */
 const LS_FOLDERS = 'groovy-proxy::folders';
+const LS_FOLDER_EXPANDED = 'groovy-proxy::folder-expanded';
 let folders = [];
 let allTags = [];
 let currentFolder = 'all';
 let contextMenuConvId = null;
+let folderExpandedState = {}; // { folderId: true/false }
 
 function loadFolders() {
     try { folders = JSON.parse(localStorage.getItem(LS_FOLDERS) || '[]'); } catch { folders = []; }
@@ -233,20 +237,48 @@ function saveFolders() {
     localStorage.setItem(LS_FOLDERS, JSON.stringify(folders));
 }
 
+function loadFolderExpandedState() {
+    try { folderExpandedState = JSON.parse(localStorage.getItem(LS_FOLDER_EXPANDED) || '{}'); } 
+    catch { folderExpandedState = {}; }
+}
+
+function saveFolderExpandedState() {
+    localStorage.setItem(LS_FOLDER_EXPANDED, JSON.stringify(folderExpandedState));
+}
+
+function toggleFolderExpanded(folderId) {
+    folderExpandedState[folderId] = !folderExpandedState[folderId];
+    saveFolderExpandedState();
+    renderSidebar();
+}
+
+function isFolderExpanded(folderId) {
+    return !!folderExpandedState[folderId];
+}
+
 function initFolders() {
+    console.log('[DEBUG] initFolders called');
     loadFolders();
-    populateFolderSelect();
+    console.log('[DEBUG] folders loaded:', folders);
+    loadFolderExpandedState();
+    console.log('[DEBUG] els.folderTreeItems:', els.folderTreeItems);
+    renderFolderTree();
     
-    // Folder select change
-    els.folderSelect?.addEventListener('change', () => {
-        currentFolder = els.folderSelect.value;
-        renderSidebar();
+    // Add folder button (quick add)
+    els.addFolderBtn?.addEventListener('click', () => {
+        const name = prompt('New folder name:');
+        if (name && name.trim()) {
+            folders.push({ id: newId(), name: name.trim(), contextFiles: [] });
+            saveFolders();
+            renderFolderTree();
+            renderSidebar();
+        }
     });
     
     // Manage folders button
     els.manageFoldersBtn?.addEventListener('click', openFolderModal);
     
-    // Create folder
+    // Create folder in modal
     els.createFolderBtn?.addEventListener('click', createFolder);
     els.newFolderInput?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') createFolder();
@@ -274,25 +306,216 @@ function initFolders() {
     });
 }
 
-function populateFolderSelect() {
-    if (!els.folderSelect) return;
+// Sort chats within a folder: pinned first, then by creation order
+function sortChatsForFolder(chats) {
+    return [...chats].sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return 0; // Keep original order for same pin status
+    });
+}
+
+// Sort folders: pinned first, then regular
+function sortFolders(folderList) {
+    return [...folderList].sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return 0;
+    });
+}
+
+// Drag and drop state
+let draggedChatId = null;
+
+function renderFolderTree() {
+    console.log('[DEBUG] renderFolderTree called');
+    if (!els.folderTreeItems) {
+        console.log('[DEBUG] els.folderTreeItems is null/undefined - returning early!');
+        return;
+    }
+    console.log('[DEBUG] rendering folders:', folders.length, 'folders');
     
-    // Keep current selection
-    const currentVal = els.folderSelect.value || 'all';
+    const allCount = conversations.length;
+    const unfiledChats = sortChatsForFolder(conversations.filter(c => !c.folderId));
+    const unfiledCount = unfiledChats.length;
     
-    els.folderSelect.innerHTML = `
-        <option value="all">📁 All Chats</option>
-        <option value="unfiled">📄 Unfiled</option>
+    let html = '';
+    
+    // All Chats (always at top, not affected by pinning)
+    const allExpanded = isFolderExpanded('all');
+    const allChats = sortChatsForFolder(conversations);
+    html += `
+        <div class="folder-tree-folder ${currentFolder === 'all' ? 'selected' : ''} ${allExpanded ? 'expanded' : ''}" data-folder-id="all">
+            <div class="folder-tree-item">
+                <span class="folder-tree-expand" data-folder-id="all">${allExpanded ? '▼' : '▶'}</span>
+                <span class="folder-tree-icon">📁</span>
+                <span class="folder-tree-name">All Chats</span>
+                <span class="folder-tree-count">${allCount}</span>
+            </div>
+            <div class="folder-tree-chats ${allExpanded ? '' : 'collapsed'}">
+                ${allChats.map(c => `
+                    <div class="folder-tree-chat ${c.id === activeId ? 'active' : ''}" data-chat-id="${c.id}" draggable="true">
+                        ${c.isPinned ? '<span class="pin-indicator">📌</span>' : ''}
+                        <span class="folder-tree-chat-title">${c.title || 'New chat'}</span>
+                    </div>
+                `).join('')}
+                ${!conversations.length ? '<div class="folder-tree-empty">No chats</div>' : ''}
+            </div>
+        </div>
     `;
     
-    folders.forEach(f => {
-        const opt = document.createElement('option');
-        opt.value = f.id;
-        opt.textContent = '📂 ' + f.name;
-        els.folderSelect.appendChild(opt);
+    // Pinned user folders first
+    const sortedFolders = sortFolders(folders);
+    sortedFolders.forEach(f => {
+        const chatCount = conversations.filter(c => c.folderId === f.id).length;
+        const isExpanded = isFolderExpanded(f.id);
+        const chatsInFolder = sortChatsForFolder(conversations.filter(c => c.folderId === f.id));
+        
+        html += `
+            <div class="folder-tree-folder ${currentFolder === f.id ? 'selected' : ''} ${isExpanded ? 'expanded' : ''}" data-folder-id="${f.id}">
+                <div class="folder-tree-item" data-drop-folder="${f.id}">
+                    <span class="folder-tree-expand" data-folder-id="${f.id}">${isExpanded ? '▼' : '▶'}</span>
+                    <span class="folder-tree-icon">${f.pinned ? '📌' : '📂'}</span>
+                    <span class="folder-tree-name">${f.name}</span>
+                    <span class="folder-tree-count">${chatCount}</span>
+                </div>
+                <div class="folder-tree-chats ${isExpanded ? '' : 'collapsed'}">
+                    ${chatsInFolder.map(c => `
+                        <div class="folder-tree-chat ${c.id === activeId ? 'active' : ''}" data-chat-id="${c.id}" draggable="true">
+                            ${c.isPinned ? '<span class="pin-indicator">📌</span>' : ''}
+                            <span class="folder-tree-chat-title">${c.title || 'New chat'}</span>
+                        </div>
+                    `).join('')}
+                    ${!chatsInFolder.length ? '<div class="folder-tree-empty">No chats</div>' : ''}
+                </div>
+            </div>
+        `;
     });
     
-    els.folderSelect.value = currentVal;
+    // Unfiled (always at bottom)
+    const unfiledExpanded = isFolderExpanded('unfiled');
+    html += `
+        <div class="folder-tree-folder ${currentFolder === 'unfiled' ? 'selected' : ''} ${unfiledExpanded ? 'expanded' : ''}" data-folder-id="unfiled">
+            <div class="folder-tree-item" data-drop-folder="unfiled">
+                <span class="folder-tree-expand" data-folder-id="unfiled">${unfiledExpanded ? '▼' : '▶'}</span>
+                <span class="folder-tree-icon">📄</span>
+                <span class="folder-tree-name">Unfiled</span>
+                <span class="folder-tree-count">${unfiledCount}</span>
+            </div>
+            <div class="folder-tree-chats ${unfiledExpanded ? '' : 'collapsed'}">
+                ${unfiledChats.map(c => `
+                    <div class="folder-tree-chat ${c.id === activeId ? 'active' : ''}" data-chat-id="${c.id}" draggable="true">
+                        ${c.isPinned ? '<span class="pin-indicator">📌</span>' : ''}
+                        <span class="folder-tree-chat-title">${c.title || 'New chat'}</span>
+                    </div>
+                `).join('')}
+                ${!unfiledChats.length ? '<div class="folder-tree-empty">No chats</div>' : ''}
+            </div>
+        </div>
+    `;
+    
+    els.folderTreeItems.innerHTML = html;
+    
+    // Attach event handlers
+    
+    // Folder row click - selects AND expands/collapses together
+    els.folderTreeItems.querySelectorAll('.folder-tree-item').forEach(item => {
+        // Get the folder ID from the item itself or its parent folder container
+        const folderContainer = item.closest('.folder-tree-folder');
+        const folderId = folderContainer ? folderContainer.dataset.folderId : item.dataset.folderId;
+        
+        if (!folderId) return;
+        
+        item.addEventListener('click', (e) => {
+            // Select this folder
+            currentFolder = folderId;
+            // Also toggle expansion
+            toggleFolderExpanded(folderId);
+            renderFolderTree();
+            renderSidebar();
+        });
+    });
+    
+    // Chat clicks and drag-and-drop inside folders
+    els.folderTreeItems.querySelectorAll('.folder-tree-chat').forEach(chatEl => {
+        const chatId = chatEl.dataset.chatId;
+        
+        chatEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            activeId = chatId;
+            const conv = conversations.find(c => c.id === chatId);
+            const opts = Array.from(els.modelSelect.options).map(o => o.value);
+            if (conv?.model && opts.includes(conv.model)) els.modelSelect.value = conv.model;
+            saveState();
+            renderFolderTree();
+            renderSidebar();
+            renderMessages();
+            syncSystemPanel();
+            focusInput();
+        });
+        
+        // Right-click for context menu
+        chatEl.addEventListener('contextmenu', (e) => {
+            openContextMenu(e, chatId);
+        });
+        
+        // Drag start - use custom type to distinguish from file drags
+        chatEl.addEventListener('dragstart', (e) => {
+            draggedChatId = chatId;
+            e.dataTransfer.setData('application/x-chat-id', chatId);
+            e.dataTransfer.effectAllowed = 'move';
+            chatEl.style.opacity = '0.5';
+        });
+        
+        chatEl.addEventListener('dragend', () => {
+            draggedChatId = null;
+            chatEl.style.opacity = '1';
+        });
+    });
+    
+    // Folder drop targets - make entire folder container a drop target
+    els.folderTreeItems.querySelectorAll('.folder-tree-folder').forEach(folderContainer => {
+        const folderId = folderContainer.dataset.folderId;
+        if (!folderId || folderId === 'all') return; // Can't drop into "All Chats"
+        
+        const targetFolderId = folderId === 'unfiled' ? null : folderId;
+        
+        folderContainer.addEventListener('dragover', (e) => {
+            // Only handle internal chat drags, not OS file drags
+            if (!e.dataTransfer.types.includes('application/x-chat-id')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'move';
+        });
+        
+        folderContainer.addEventListener('dragenter', (e) => {
+            // Only handle internal chat drags
+            if (!e.dataTransfer.types.includes('application/x-chat-id')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            folderContainer.classList.add('drop-target-active');
+        });
+        
+        folderContainer.addEventListener('dragleave', (e) => {
+            // Only remove highlight if we're leaving the folder container entirely
+            if (!folderContainer.contains(e.relatedTarget)) {
+                folderContainer.classList.remove('drop-target-active');
+            }
+        });
+        
+        folderContainer.addEventListener('drop', (e) => {
+            // Only handle internal chat drags
+            const chatId = e.dataTransfer.getData('application/x-chat-id');
+            if (!chatId) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            folderContainer.classList.remove('drop-target-active');
+            
+            moveConvToFolder(chatId, targetFolderId);
+            draggedChatId = null;
+        });
+    });
 }
 
 let selectedFolderId = null;
@@ -410,10 +633,11 @@ function renderFolderContents() {
         contentsEl.innerHTML = `
             <div class="folder-contents-header">
                 <h4>📄 Unassigned Chats (${unassigned.length})</h4>
+                <p class="muted small">Drag chats to folders on the left, or use the dropdown</p>
             </div>
             <div class="folder-chats-list">
                 ${unassigned.length ? unassigned.map(c => `
-                    <div class="folder-chat-item" data-chat-id="${c.id}">
+                    <div class="folder-chat-item" data-chat-id="${c.id}" draggable="true">
                         <span class="chat-title">${c.title || 'Untitled'}</span>
                         <select class="assign-folder-select" data-chat-id="${c.id}">
                             <option value="">— Move to folder —</option>
@@ -430,8 +654,24 @@ function renderFolderContents() {
                 if (select.value) {
                     moveConvToFolder(select.dataset.chatId, select.value);
                     renderFolderList();
+                    renderSidebar();
                 }
             };
+        });
+        
+        // Make chat items draggable
+        contentsEl.querySelectorAll('.folder-chat-item[draggable="true"]').forEach(chatEl => {
+            const chatId = chatEl.dataset.chatId;
+            
+            chatEl.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('application/x-chat-id', chatId);
+                e.dataTransfer.effectAllowed = 'move';
+                chatEl.style.opacity = '0.5';
+            });
+            
+            chatEl.addEventListener('dragend', () => {
+                chatEl.style.opacity = '1';
+            });
         });
     } else {
         // Show folder contents
@@ -476,15 +716,16 @@ function renderFolderContents() {
             if (!picker.classList.contains('hidden')) {
                 const unassigned = conversations.filter(c => !c.folderId);
                 listEl.innerHTML = unassigned.length ? unassigned.map(c => `
-                    <div class="folder-chat-item selectable" data-chat-id="${c.id}">
+                    <div class="folder-chat-item selectable" data-chat-id="${c.id}" style="cursor:pointer">
                         <span class="chat-title">${c.title || 'Untitled'}</span>
                         <button class="add-to-folder-btn ghost-btn small" data-chat-id="${c.id}">+ Add</button>
                     </div>
                 `).join('') : '<p class="muted small">No unassigned chats available</p>';
                 
-                listEl.querySelectorAll('.add-to-folder-btn').forEach(btn => {
-                    btn.onclick = () => {
-                        moveConvToFolder(btn.dataset.chatId, selectedFolderId);
+                // Make entire row clickable, not just the button
+                listEl.querySelectorAll('.folder-chat-item.selectable').forEach(row => {
+                    row.onclick = (e) => {
+                        moveConvToFolder(row.dataset.chatId, selectedFolderId);
                         renderFolderList();
                     };
                 });
@@ -575,14 +816,24 @@ function openContextMenu(e, convId) {
     const conv = conversations.find(c => c.id === convId);
     const folderOpts = els.contextFolderOptions;
     if (folderOpts) {
+        // Add pin option at the top
+        const pinLabel = conv?.isPinned ? '📌 Unpin Chat' : '📌 Pin to Top';
         folderOpts.innerHTML = `
+            <div class="context-menu-option pin-option" data-action="pin">${pinLabel}</div>
+            <div style="border-top: 1px solid var(--border); margin: 4px 0;"></div>
             <div class="context-menu-option ${!conv?.folderId ? 'selected' : ''}" data-folder="">📄 Unfiled</div>
             ${folders.map(f => `
                 <div class="context-menu-option ${conv?.folderId === f.id ? 'selected' : ''}" data-folder="${f.id}">📂 ${f.name}</div>
             `).join('')}
         `;
         
-        folderOpts.querySelectorAll('.context-menu-option').forEach(opt => {
+        // Pin option handler
+        folderOpts.querySelector('.pin-option')?.addEventListener('click', () => {
+            toggleChatPin(convId);
+            menu.classList.add('hidden');
+        });
+        
+        folderOpts.querySelectorAll('.context-menu-option[data-folder]').forEach(opt => {
             opt.onclick = () => {
                 moveConvToFolder(convId, opt.dataset.folder || null);
                 menu.classList.add('hidden');
@@ -607,6 +858,26 @@ function openContextMenu(e, convId) {
     }
     
     menu.classList.remove('hidden');
+}
+
+// Toggle pin status for a chat
+function toggleChatPin(convId) {
+    const conv = conversations.find(c => c.id === convId);
+    if (!conv) return;
+    conv.isPinned = !conv.isPinned;
+    saveState();
+    renderFolderTree();
+    renderSidebar();
+}
+
+// Toggle pin status for a folder
+function toggleFolderPin(folderId) {
+    const folder = folders.find(f => f.id === folderId);
+    if (!folder) return;
+    folder.pinned = !folder.pinned;
+    saveFolders();
+    renderFolderTree();
+    renderSidebar();
 }
 
 function moveConvToFolder(convId, folderId) {
@@ -1246,35 +1517,8 @@ function populateModelSelect() {
 
 /* ====== Sidebar ====== */
 function renderSidebar() {
-    els.chatList.innerHTML = '';
-    
-    // Filter conversations based on selected folder
-    const filtered = conversations.filter(c => {
-        if (currentFolder === 'all') return true;
-        if (currentFolder === 'unfiled') return !c.folderId;
-        return c.folderId === currentFolder;
-    });
-    
-    filtered.forEach(c => {
-        const item = document.createElement('div');
-        item.className = 'chat-item' + (c.id===activeId?' active':'');
-        item.title = c.title;
-        const label = document.createElement('span');
-        label.textContent = c.title||'New chat';
-        label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;flex:1';
-        item.appendChild(label);
-        const del = document.createElement('button');
-        del.className='del'; del.textContent='\xd7'; del.title='Delete';
-        del.onclick = e => { e.stopPropagation(); if(confirm('Delete?')) deleteConversation(c.id); };
-        item.appendChild(del);
-        item.addEventListener('click', () => {
-            activeId = c.id;
-            const opts = Array.from(els.modelSelect.options).map(o=>o.value);
-            if (c.model&&opts.includes(c.model)) els.modelSelect.value=c.model;
-            saveState(); renderSidebar(); renderMessages(); syncSystemPanel(); focusInput();
-        });
-        els.chatList.appendChild(item);
-    });
+    // All chats are now rendered inside the folder tree - no flat list
+    renderFolderTree();
 }
 
 function syncSystemPanel() { 
@@ -2007,20 +2251,82 @@ els.fileInput.addEventListener('change', () => {
     els.fileInput.value='';
 });
 
-// Drag and drop
+// Drag and drop - only show overlay for OS file drags, not internal chat drags
 let dragCounter = 0;
+
+function isExternalFileDrag(e) {
+    // Check if this is an OS file drag (not internal chat drag)
+    // Must have "Files" type AND must NOT have our custom chat-id type
+    return e.dataTransfer.types.includes('Files') && 
+           !e.dataTransfer.types.includes('application/x-chat-id');
+}
+
+function isInternalChatDrag(e) {
+    // Check if this is an internal chat being dragged
+    return e.dataTransfer.types.includes('application/x-chat-id');
+}
+
 document.addEventListener('dragenter', e => {
-    e.preventDefault(); dragCounter++;
+    // ONLY show overlay for external file drags from OS - NOT internal chat drags
+    if (isInternalChatDrag(e)) {
+        // Internal chat drag - ignore completely, let folder handlers deal with it
+        return;
+    }
+    if (!isExternalFileDrag(e)) return;
+    
+    e.preventDefault(); 
+    dragCounter++;
     els.dropOverlay.classList.remove('hidden');
 });
+
 document.addEventListener('dragleave', e => {
-    e.preventDefault(); dragCounter--;
-    if(dragCounter<=0){dragCounter=0;els.dropOverlay.classList.add('hidden');}
+    // Don't interfere with internal chat drags
+    if (isInternalChatDrag(e)) return;
+    
+    // Only handle if we're tracking file drags (dragCounter > 0)
+    if (dragCounter === 0) return;
+    
+    e.preventDefault(); 
+    dragCounter--;
+    if (dragCounter <= 0) {
+        dragCounter = 0;
+        els.dropOverlay.classList.add('hidden');
+    }
 });
-document.addEventListener('dragover', e => e.preventDefault());
+
+document.addEventListener('dragover', e => {
+    // Don't interfere with internal chat drags
+    if (isInternalChatDrag(e)) return;
+    
+    // Only prevent default for external file drags (to allow drop)
+    if (isExternalFileDrag(e)) {
+        e.preventDefault();
+    }
+});
+
 document.addEventListener('drop', e => {
-    e.preventDefault(); dragCounter=0; els.dropOverlay.classList.add('hidden');
-    if(e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+    // Internal chat drag - let folder handlers deal with it, don't interfere
+    if (isInternalChatDrag(e)) {
+        return;
+    }
+    
+    // Only process if this is an external file drop
+    if (!isExternalFileDrag(e)) {
+        dragCounter = 0;
+        els.dropOverlay.classList.add('hidden');
+        return;
+    }
+    
+    e.preventDefault(); 
+    dragCounter = 0; 
+    els.dropOverlay.classList.add('hidden');
+    
+    // Process dropped files - attach as context
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+        console.log('[DEBUG] Processing dropped files:', files.length);
+        addFiles(files);
+    }
 });
 
 // Paste image
@@ -2835,7 +3141,7 @@ function renderPanelFolderList() {
     const unassignedCount = conversations.filter(c => !c.folderId).length;
     
     let html = `
-        <div class="folder-item folder-item-unassigned ${panelShowingUnassigned ? 'active' : ''}" data-folder-id="__unassigned__">
+        <div class="folder-item folder-item-unassigned ${panelShowingUnassigned ? 'active' : ''}" data-folder-id="__unassigned__" data-drop-target="__unassigned__">
             <div class="folder-item-name">
                 <span>📄</span>
                 <span>Unassigned Chats</span>
@@ -2847,7 +3153,7 @@ function renderPanelFolderList() {
     html += folders.map(f => {
         const chatCount = conversations.filter(c => c.folderId === f.id).length;
         return `
-            <div class="folder-item ${panelSelectedFolderId === f.id ? 'active' : ''}" data-folder-id="${f.id}">
+            <div class="folder-item ${panelSelectedFolderId === f.id ? 'active' : ''}" data-folder-id="${f.id}" data-drop-target="${f.id}">
                 <div class="folder-item-name">
                     <span>📂</span>
                     <span>${f.name}</span>
@@ -2870,6 +3176,7 @@ function renderPanelFolderList() {
     // Attach handlers
     listEl.querySelectorAll('.folder-item').forEach(item => {
         const folderId = item.dataset.folderId;
+        const dropTargetId = item.dataset.dropTarget;
         
         item.querySelector('.folder-item-name').onclick = () => {
             if (folderId === '__unassigned__') {
@@ -2895,6 +3202,43 @@ function renderPanelFolderList() {
                 renderPanelFolderList();
             });
         }
+        
+        // Make folder items drop targets for chat drag-and-drop
+        item.addEventListener('dragover', (e) => {
+            if (!e.dataTransfer.types.includes('application/x-chat-id')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'move';
+        });
+        
+        item.addEventListener('dragenter', (e) => {
+            if (!e.dataTransfer.types.includes('application/x-chat-id')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            item.classList.add('drop-target-active');
+        });
+        
+        item.addEventListener('dragleave', (e) => {
+            if (!item.contains(e.relatedTarget)) {
+                item.classList.remove('drop-target-active');
+            }
+        });
+        
+        item.addEventListener('drop', (e) => {
+            const chatId = e.dataTransfer.getData('application/x-chat-id');
+            if (!chatId) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            item.classList.remove('drop-target-active');
+            
+            // Determine target folder ID
+            const targetFolderId = dropTargetId === '__unassigned__' ? null : dropTargetId;
+            
+            moveConvToFolder(chatId, targetFolderId);
+            renderPanelFolderList();
+            renderSidebar();
+        });
     });
     
     renderPanelFolderContents();
@@ -3685,7 +4029,14 @@ renderSidebar = function() {
     // Load username into input
     if (els.usernameInput) els.usernameInput.value = getUsername() === 'You' ? '' : getUsername();
     renderSidebar(); renderMessages(); syncSystemPanel();
-    await loadModels();
+    
+    // Wrap model loading - don't let API failures crash the rest of init
+    try {
+        await loadModels();
+    } catch (e) {
+        console.warn('Model loading failed:', e.message);
+    }
+    
     addModelControlButtons();
     updateQuickFavBtn();
     updateModelPickerLabel();
