@@ -181,7 +181,7 @@ echo "   • Your API Key"
 echo ""
 
 # Optionally open the Applications folder
-read -p "Would you like to open the Applications folder now? (y/n): " -n 1 -r
+read -p "Would you like to open the Applications folder now? (y/n): " -n 1 -r < /dev/tty
 echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     open "$HOME/Applications"
