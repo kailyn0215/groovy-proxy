@@ -3580,14 +3580,26 @@ function quoteMessage(content) {
 function getTheme() {
     return localStorage.getItem(LS_THEME) || 'light';
 }
+const DARK_THEMES = new Set(['dark', 'slate']);
+const PRISM_DARK_URL = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css';
+const PRISM_LIGHT_URL = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css';
+
+function updatePrismTheme(theme) {
+    const link = document.getElementById('prism-theme-link');
+    if (!link) return;
+    link.href = DARK_THEMES.has(theme) ? PRISM_DARK_URL : PRISM_LIGHT_URL;
+}
+
 function setTheme(theme) {
     localStorage.setItem(LS_THEME, theme);
     document.documentElement.setAttribute('data-theme', theme);
+    updatePrismTheme(theme);
 }
 function initTheme() {
     const theme = getTheme();
     document.documentElement.setAttribute('data-theme', theme);
     els.themeSelect.value = theme;
+    updatePrismTheme(theme);
 }
 
 els.themeSelect.addEventListener('change', () => {

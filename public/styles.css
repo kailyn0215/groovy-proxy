@@ -2365,6 +2365,10 @@ body::after {
     margin: 10px 0;
     box-shadow: var(--code-shadow, inset 0 0 30px rgba(0,0,0,0.35));
 }
+/* Ensure code text colour inside Prism blocks matches theme (overrides .bubble .content pre code) */
+.bubble .content pre[class*="language-"] code {
+    color: var(--code-text);
+}
 .bubble .content code[class*="language-"] {
     background: transparent;
 }
