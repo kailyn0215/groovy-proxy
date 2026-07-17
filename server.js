@@ -66,56 +66,84 @@ function serveStatic(req, res) {
     });
 }
 
-function proxyToLiteLLM(req, res) {
-    // /api/foo/bar -> {LITELLM_BASE_URL}/foo/bar
-    const subPath = req.url.replace(/^\/api/, '');
-    const target = new URL(LITELLM_BASE_URL + subPath);
-    const client = target.protocol === 'https:' ? https : http;
+const API_PREFIX = '/api';
+const HTTPS_DEFAULT_PORT = 443;
+const HTTP_DEFAULT_PORT = 80;
+const BAD_GATEWAY_STATUS = 502;
 
-    const headers = { ...req.headers };
+// Builds the upstream URL for a proxied request, e.g. /api/foo/bar -> {LITELLM_BASE_URL}/foo/bar
+function buildUpstreamUrl(requestUrl) {
+    const subPath = requestUrl.replace(new RegExp(`^${API_PREFIX}`), '');
+    return new URL(LITELLM_BASE_URL + subPath);
+}
+
+// Prepares outbound request headers, stripping ones that would conflict with
+// the upstream target and enforcing server-side auth/encoding rules.
+function buildUpstreamHeaders(incomingHeaders, targetUrl) {
+    const headers = { ...incomingHeaders };
     delete headers['host'];
-    delete headers['content-length']; // will be recomputed
+    delete headers['content-length']; // will be recomputed by the HTTP client
+
     // Force identity encoding — Node won't auto-decompress, and we need to
     // stream SSE through untouched.
     headers['accept-encoding'] = 'identity';
+
     // Always override Authorization with our server-side key if set.
     // (The browser never sends one anyway.)
     if (LITELLM_API_KEY) {
         headers['authorization'] = `Bearer ${LITELLM_API_KEY}`;
     }
+
     // Make sure upstream sees the right Host header for TLS / vhost routing
-    headers['host'] = target.host;
+    headers['host'] = targetUrl.host;
 
-    const options = {
+    return headers;
+}
+
+function buildUpstreamRequestOptions(req, targetUrl) {
+    const defaultPort = targetUrl.protocol === 'https:' ? HTTPS_DEFAULT_PORT : HTTP_DEFAULT_PORT;
+
+    return {
         method: req.method,
-        hostname: target.hostname,
-        port: target.port || (target.protocol === 'https:' ? 443 : 80),
-        path: target.pathname + target.search,
-        headers,
+        hostname: targetUrl.hostname,
+        port: targetUrl.port || defaultPort,
+        path: targetUrl.pathname + targetUrl.search,
+        headers: buildUpstreamHeaders(req.headers, targetUrl),
     };
+}
 
-    const upstream = client.request(options, (upRes) => {
-        // Strip headers that would break chunked SSE forwarding
-        const outHeaders = { ...upRes.headers };
-        delete outHeaders['content-encoding'];
-        delete outHeaders['content-length'];
-        delete outHeaders['transfer-encoding'];
-        // Keep the stream raw and uncompressed; disable proxy/Node buffering hints
-        outHeaders['cache-control'] = 'no-cache, no-transform';
-        outHeaders['x-accel-buffering'] = 'no';
-        res.writeHead(upRes.statusCode || 502, outHeaders);
-        upRes.pipe(res);
-    });
+// Relays the upstream response back to the client, stripping headers that
+// would break chunked SSE forwarding.
+function forwardUpstreamResponse(upstreamRes, res) {
+    const outHeaders = { ...upstreamRes.headers };
+    delete outHeaders['content-encoding'];
+    delete outHeaders['content-length'];
+    delete outHeaders['transfer-encoding'];
+    // Keep the stream raw and uncompressed; disable proxy/Node buffering hints
+    outHeaders['cache-control'] = 'no-cache, no-transform';
+    outHeaders['x-accel-buffering'] = 'no';
 
-    upstream.on('error', (err) => {
-        console.error(`Upstream error (${req.method} ${target.href}):`, err.message);
-        if (!res.headersSent) {
-            res.writeHead(502, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: { message: `Upstream error: ${err.message}` } }));
-        } else {
-            res.end();
-        }
-    });
+    res.writeHead(upstreamRes.statusCode || BAD_GATEWAY_STATUS, outHeaders);
+    upstreamRes.pipe(res);
+}
+
+function sendUpstreamError(res, targetUrl, method, err) {
+    console.error(`Upstream error (${method} ${targetUrl.href}):`, err.message);
+    if (res.headersSent) {
+        res.end();
+        return;
+    }
+    res.writeHead(BAD_GATEWAY_STATUS, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: { message: `Upstream error: ${err.message}` } }));
+}
+
+function proxyToLiteLLM(req, res) {
+    const targetUrl = buildUpstreamUrl(req.url);
+    const client = targetUrl.protocol === 'https:' ? https : http;
+    const options = buildUpstreamRequestOptions(req, targetUrl);
+
+    const upstream = client.request(options, (upstreamRes) => forwardUpstreamResponse(upstreamRes, res));
+    upstream.on('error', (err) => sendUpstreamError(res, targetUrl, req.method, err));
 
     req.pipe(upstream);
 }
